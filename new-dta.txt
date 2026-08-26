@@ -1,0 +1,531 @@
+# DTA Web Architecture v1.0
+### Fase 0 — Descubrimiento y Arquitectura
+
+**Proyecto:** Sitio web corporativo / motor de adquisición / plataforma base DTA Sistemas
+**Estado:** Entregable de Fase 0 — pendiente de aprobación para iniciar Fase 1 (Design System)
+**Referencia visual:** mockups compartidos (Home, Soluciones, DTA, Contacto) — usados como base de estilo para el Design System de la sección 6.
+
+---
+
+## 0. Resumen ejecutivo
+
+DTA Sistemas necesita una plataforma web que funcione simultáneamente como sitio corporativo, motor SEO, sistema de generación de leads y base técnica para productos futuros (DTA Audit, DTA Digital Score, CRM, dashboards). La arquitectura propuesta prioriza:
+
+1. **Contenido estructurado y data-driven** (soluciones, sectores, proyectos, blog como datos, no como HTML hardcodeado) para escalar sin reescribir componentes.
+2. **SEO técnico desde el día uno**: URLs limpias, metadata, Schema.org, sitemap dinámico, arquitectura de enlazado interno.
+3. **Un embudo de conversión claro**: Home → Solución/Sector → Prueba social (Proyectos) → Diagnóstico (DTA Digital Audit) → Contacto → Lead calificado.
+4. **Una base técnica (Next.js App Router + Route Handlers/Server Actions) que ya anticipa** rutas protegidas (`/app`, `/login`, `/dashboard`) para cuando DTA lance productos SaaS propios, sin necesitar una migración de framework.
+
+La marca visual observada en los mockups (fondo blanco/off-white, azul marino oscuro como color de marca, azul medio como acento de interacción, cards con bordes suaves, iconografía lineal en círculos azul claro, mapas/diagramas de sistema en el hero) se usará como fuente de verdad del Design System.
+
+---
+
+## 1. Sitemap
+
+### 1.1 Mapa completo de rutas públicas
+
+```
+/                                   Homepage
+/soluciones                         Hub de soluciones
+/soluciones/sistemas-empresariales
+/soluciones/integracion-de-sistemas
+/soluciones/business-intelligence
+/soluciones/automatizacion
+/soluciones/inteligencia-artificial
+/soluciones/desarrollo-digital
+/soluciones/dta-digital-audit       Página comercial del producto (Audit)
+
+/sectores                           Hub de sectores
+/sectores/turismo
+/sectores/hoteleria
+/sectores/inmobiliario
+/sectores/servicios
+
+/proyectos                          Listado de casos ("Soluciones en acción")
+/proyectos/[slug]                   Caso individual
+
+/dta                                Quiénes somos / filosofía / metodología
+/dta-care                           Producto de soporte y evolución continua
+
+/blog                               Índice del blog
+/blog/categoria/[categoria]         Archivo por categoría
+/blog/[slug]                        Artículo individual
+
+/contacto                           Formulario + canales de contacto
+
+/design-system                      Página interna (no indexable) para QA visual
+
+--- Legales / utilitarias ---
+/aviso-de-privacidad
+/terminos-y-condiciones
+/sitemap.xml
+/robots.txt
+```
+
+### 1.2 Rutas reservadas para arquitectura futura (no se construyen en esta fase)
+
+```
+/app            (shell de futura plataforma SaaS)
+/login
+/dashboard
+/dashboard/audit
+/dashboard/settings
+```
+
+Estas rutas se **reservan a nivel de estructura de carpetas y middleware**, pero no se implementa lógica ni UI en la fase actual (ver sección 9).
+
+### 1.3 Jerarquía visual del sitemap
+
+```
+INICIO
+├── SOLUCIONES
+│   ├── Sistemas empresariales
+│   ├── Integración de sistemas
+│   ├── Business Intelligence
+│   ├── Automatización
+│   ├── Inteligencia Artificial
+│   ├── Desarrollo Digital
+│   └── DTA Digital Audit  ──────────┐
+├── SECTORES                         │ (venta cruzada
+│   ├── Turismo                      │  entre nodos)
+│   ├── Hotelería                    │
+│   ├── Inmobiliario                 │
+│   └── Servicios                    │
+├── PROYECTOS ───────────────────────┤
+│   └── [slug]                       │
+├── DTA (nosotros/metodología)       │
+├── DTA CARE                         │
+├── BLOG ─────────────────────────────┘
+│   ├── categoría/[categoria]
+│   └── [slug]
+└── CONTACTO ← destino final del embudo
+```
+
+---
+
+## 2. Principio arquitectónico
+
+La plataforma se construye en **cuatro capas superpuestas**, no en cuatro sitios separados:
+
+| Capa | Función | Mecanismo |
+|---|---|---|
+| **Marketing Website** | Comunicar propuesta de valor, generar confianza | Server Components, contenido estático/ISR |
+| **SEO Engine** | Captar tráfico orgánico cualificado | Metadata dinámica, Schema.org, MDX blog, internal linking programático |
+| **Lead Generation System** | Convertir visitantes en leads calificados | Server Actions, validación, Turnstile, eventos GA4, integración CRM futura |
+| **Future Product Platform** | Base para SaaS propio | Rutas reservadas `/app`, `/login`, `/dashboard`, modelo de datos preparado para autenticación |
+
+**Regla de diseño:** ninguna decisión técnica de esta fase debe bloquear la capa 4. Por eso se elige Next.js App Router (soporta rutas públicas estáticas y aplicaciones autenticadas en el mismo proyecto), Prisma/PostgreSQL como ORM/DB futura ya contemplados, y una estructura de carpetas que separa `marketing` de lo que eventualmente será `product`.
+
+---
+
+## 3. Arquitectura técnica / Stack
+
+### 3.1 Stack confirmado (obligatorio según brief)
+
+| Capa | Tecnología | Justificación |
+|---|---|---|
+| Framework | Next.js (App Router) | SSG/ISR para SEO + Server Components para performance + Server Actions para leads, todo en un solo framework |
+| Lenguaje | TypeScript | Tipado en modelos de datos (soluciones, sectores, proyectos) reduce errores al escalar contenido |
+| UI | React + Tailwind CSS | Velocidad de desarrollo + consistencia con Design System basado en tokens |
+| Animación | Motion (Framer Motion) | Solo en interacciones puntuales (hover, entrada de secciones) — nunca a costa de CWV |
+| Iconografía | Lucide | Coherente con el estilo lineal visto en los mockups (íconos en círculos azul claro) |
+| Contenido | MDX | Blog y casos de estudio versionables en Git antes de migrar a CMS |
+| Imágenes/Fuentes | next/image, next/font | Optimización automática (AVIF/WebP, font subsetting) |
+| Backend inicial | Route Handlers + Server Actions | Suficiente para formularios/leads sin levantar un backend aparte |
+| Infraestructura | Vercel (frontend) + Cloudflare (DNS/seguridad/red) | Despliegue simple + protección DDoS/WAF vía Cloudflare |
+| Anti-spam | Cloudflare Turnstile | Sin fricción para el usuario, sin CAPTCHA tradicional |
+| Analytics | GA4 + GTM | Estándar, permite agregar/quitar tags sin tocar código |
+| Repos/CI-CD | GitHub + Vercel | Preview deployments automáticos por PR |
+
+### 3.2 Stack futuro (no se implementa aún, se deja contemplado)
+
+| Capa | Tecnología | Cuándo se activa |
+|---|---|---|
+| CMS | Sanity o Contentful | Cuando el volumen de blog/casos supere lo cómodo en MDX manual |
+| Backend de producto | FastAPI | Al construir DTA Audit/Digital Score como servicio propio (lógica de negocio pesada, IA) |
+| Base de datos | PostgreSQL | Al necesitar persistencia real (leads históricos, cuentas, resultados de audit) |
+| ORM | Prisma | Capa de acceso a datos tipada, compartible entre Next.js y futuros servicios Node |
+
+### 3.3 Decisión técnica que requiere tu validación
+
+> **Server Actions vs. API Routes para el formulario de contacto**
+> - **Opción A — Server Actions:** más simple, menos código, ideal si el form solo vive dentro de Next.js.
+> - **Opción B — Route Handler dedicado (`/api/leads`):** más flexible si en el futuro otros clientes (app móvil, integraciones externas) necesitan enviar leads al mismo endpoint.
+> - **Recomendación:** Server Actions ahora, con la lógica de negocio (validación + envío a CRM/email) aislada en `lib/leads/` para poder exponerla como Route Handler después sin reescribirla. Esto evita sobre-ingeniería hoy sin cerrar la puerta a mañana.
+
+---
+
+## 4. Estructura de carpetas
+
+```
+app/
+  layout.tsx
+  page.tsx                          → Homepage
+
+  (marketing)/                      → Route group: todo lo público-comercial
+    soluciones/
+      page.tsx
+      sistemas-empresariales/page.tsx
+      integracion-de-sistemas/page.tsx
+      business-intelligence/page.tsx
+      automatizacion/page.tsx
+      inteligencia-artificial/page.tsx
+      desarrollo-digital/page.tsx
+      dta-digital-audit/page.tsx
+
+    sectores/
+      page.tsx
+      turismo/page.tsx
+      hoteleria/page.tsx
+      inmobiliario/page.tsx
+      servicios/page.tsx
+
+    proyectos/
+      page.tsx
+      [slug]/page.tsx
+
+    blog/
+      page.tsx
+      categoria/[categoria]/page.tsx
+      [slug]/page.tsx
+
+    dta/page.tsx
+    dta-care/page.tsx
+    contacto/page.tsx
+
+  design-system/page.tsx            → noindex, solo QA interno
+
+  (product)/                        → Route group RESERVADO para Fase 11 (vacío hoy)
+    app/
+    login/
+    dashboard/
+
+  api/
+    leads/route.ts                  → si se opta por Route Handler (ver 3.3)
+    og/route.tsx                    → generación dinámica de Open Graph images
+
+  sitemap.ts                        → sitemap.xml dinámico (Next.js metadata API)
+  robots.ts
+
+components/
+  ui/                                → Button, Badge, Input, Select, Container
+  layout/                            → Navbar, Footer, MobileMenu
+  sections/                          → Hero, Pilares, Problemas, Proceso, CTAFinal...
+  cards/                             → SolutionCard, SectorCard, ProjectCard, BlogCard
+  navigation/                        → Breadcrumb, TabsFilter (como el filtro de /soluciones)
+  forms/                             → ContactForm, FormField, TurnstileWidget
+  seo/                               → JsonLd, MetaTags helpers
+
+content/
+  blog/                              → artículos .mdx
+  projects/                          → casos de estudio .mdx
+
+lib/
+  seo/                               → generateMetadata helpers, schema builders
+  analytics/                         → eventos GA4 tipados
+  validation/                        → esquemas zod para formularios
+  leads/                             → lógica de negocio de envío de leads (server-only)
+  utils/
+
+data/
+  solutions/                         → solutions.ts (array tipado, fuente de /soluciones)
+  sectors/                           → sectors.ts
+  projects/                          → projects.ts (o se deriva de content/projects si es MDX)
+  navigation.ts                      → estructura del menú (una sola fuente de verdad)
+
+public/
+  images/
+  icons/
+
+styles/
+  globals.css                        → tokens de Tailwind (colores, spacing, tipografía)
+
+docs/
+  architecture.md
+  seo.md
+  analytics.md
+  deployment.md
+  content.md
+  components.md
+```
+
+**Nota sobre `(marketing)` y `(product)`:** son *route groups* de Next.js (no afectan la URL). Separar así el código desde hoy es lo que permite que en la Fase 11 se agregue autenticación y dashboard sin tocar ni reestructurar las páginas comerciales existentes.
+
+---
+
+## 5. Design System (propuesta, basada en los mockups de referencia)
+
+Tomé los tres mockups compartidos como fuente de verdad visual. Esto es lo que se implementará formalmente en `/design-system` durante la Fase 1.
+
+### 5.1 Paleta de color
+
+| Token | Uso | Aprox. HEX |
+|---|---|---|
+| `--dta-navy-900` | Color de marca: footer, secciones oscuras ("Tecnología construida desde..."), texto sobre fondo claro en headlines fuertes | `#0B1730` |
+| `--dta-navy-800` | Variante de fondo oscuro (cards sobre navy, degradados sutiles) | `#101F3D` |
+| `--dta-blue-600` | Acento primario: CTAs, links activos, íconos, subrayado de nav activo | `#1B4DE0` |
+| `--dta-blue-100` | Fondo de íconos circulares (los círculos azul claro con ícono azul oscuro) | `#E7EEFD` |
+| `--dta-gray-50` | Fondo general off-white de secciones | `#F6F7FA` |
+| `--dta-gray-200` | Bordes de cards, separadores | `#E4E7EC` |
+| `--dta-gray-600` | Texto secundario/body | `#5B6472` |
+| `--dta-black` | Texto principal, headlines | `#0F1115` |
+| `--dta-white` | Fondo de cards, navbar | `#FFFFFF` |
+
+**Regla de uso (según el brief):** el azul es acento, no dominante. En los mockups se confirma: >80% de cada página es blanco/gris claro, el navy solo aparece en footer y en 1–2 bloques de contraste por página (ej. bloque "Tecnología construida desde el corazón de uno de los mercados más dinámicos de México").
+
+### 5.2 Tipografía
+
+- **Familia:** Inter (o Manrope como alternativa — se recomienda **Inter** por mejor soporte de pesos intermedios para dashboards/datos, que es donde DTA quiere diferenciarse visualmente).
+- **Escala tipográfica sugerida:**
+
+| Token | Tamaño / line-height | Uso |
+|---|---|---|
+| `display` | 44–56px / 1.1, peso 700 | H1 de hero ("Tu empresa ya tiene tecnología...") |
+| `h2` | 32–36px / 1.2, peso 700 | Headlines de sección |
+| `h3` | 20–24px / 1.3, peso 600 | Títulos de card (ej. "01. Sistemas empresariales") |
+| `body-lg` | 18px / 1.6, peso 400 | Subheadlines, intros de sección |
+| `body` | 16px / 1.6, peso 400 | Texto de cards y párrafos |
+| `label` | 13px / 1.4, peso 600, uppercase, tracking amplio | Eyebrows ("SOLUCIONES", "CONTACTO", "DTA SISTEMAS") vistos sobre cada H1 |
+
+### 5.3 Espaciado y grid
+
+- Base de espaciado en múltiplos de 4px (Tailwind default).
+- Contenedor máximo: `1280px`, padding lateral `24px` mobile / `64px` desktop.
+- Grid de cards: 3 columnas desktop → 2 tablet → 1 mobile (confirmado en la sección de Soluciones y Sectores de los mockups).
+- Radio de borde consistente: `12px` en cards, `8px` en inputs, `999px` (pill) en botones y badges.
+
+### 5.4 Componentes base (inventario visual confirmado en mockups)
+
+| Componente | Variantes observadas |
+|---|---|
+| `Button` | Primario (azul sólido, ej. "Hablemos", "Analizar mi empresa"), Secundario (borde/texto oscuro, ej. "Conocer DTA") |
+| `Badge/Eyebrow` | Texto azul uppercase pequeño sobre headline |
+| `IconCircle` | Círculo `--dta-blue-100` con ícono Lucide `--dta-blue-600`, usado en pilares, "Así trabajamos", contacto |
+| `SolutionCard` / `SectorCard` | Ícono circular + título numerado + descripción + bullets con check + link "Ver soluciones →" |
+| `ProcessStep` | Número en círculo azul + título + descripción corta, conectados por flecha (visto en "Así trabajamos en DTA" y "Cómo trabajamos") |
+| `StatStrip` | Franja navy con ciudades/ubicaciones (Cancún, Playa del Carmen, Riviera Maya, Quintana Roo, Yucatán) sobre mapa de puntos |
+| `TabsFilter` | Filtro horizontal en `/soluciones` ("Todas las soluciones", "Sistemas", "Integración"...) |
+| `ContactChannelRow` | Ícono + label + valor + chevron, visto en columna izquierda de `/contacto` |
+| `FormField` | Label + input con placeholder gris, radio 8px, borde gris claro |
+| `Navbar` | Logo izq., nav centrada, CTA primario derecha, activo subrayado en azul |
+| `Footer` | 4–5 columnas sobre fondo navy: marca+tagline, Soluciones, Sectores/Empresa, Contacto, Síguenos |
+
+### 5.5 Iconografía y visuales de sistema
+
+- Todos los diagramas (hero de Home, "Así trabajamos") deben construirse como **ilustración vectorial propia** (nodo central DTA conectado a Clientes/CRM/Web/Datos/APIs/IA), **no** como diagrama técnico literal ni stock — esto ya está resuelto correctamente en el mockup de referencia y se mantiene como estándar.
+- Evitar fotografía stock genérica de personas con laptop; la única fotografía real aceptable es la usada en `/dta` (foto de equipo/oficina en tono navy, discreta, no protagonista).
+
+---
+
+## 6. Modelo de contenido (data-driven)
+
+Todo el contenido de Soluciones, Sectores, Proyectos y Blog vive como **datos tipados**, no hardcodeado en JSX, para poder agregar servicios nuevos editando un archivo de datos.
+
+### 6.1 `data/solutions/solutions.ts`
+
+```ts
+type Solution = {
+  slug: string;                 // "automatizacion"
+  pillar: "sistemas" | "integracion" | "inteligencia" | "automatizacion" | "desarrollo";
+  title: string;
+  problemHeadline: string;      // "Perdemos horas en tareas repetitivas"
+  description: string;
+  useCases: string[];
+  deliverables: string[];
+  technologies?: string[];      // opcional, solo si aporta valor (regla 48 del brief)
+  sectors: string[];            // slugs de /sectores relacionados
+  cta: { label: string; href: string };
+  seo: SEOFields;
+};
+```
+
+### 6.2 `data/sectors/sectors.ts`
+
+```ts
+type Sector = {
+  slug: string;                 // "turismo"
+  name: string;
+  heroImage: string;
+  problems: string[];           // lenguaje específico del sector (disponibilidad, OTAs, reservas...)
+  relatedSolutions: string[];   // slugs de soluciones
+  seo: SEOFields;
+};
+```
+
+### 6.3 `data/projects` o `content/projects/*.mdx`
+
+```ts
+type Project = {
+  slug: string;
+  title: string;
+  sector: string;
+  problem: string;
+  solution: string;
+  technology: string[];
+  result: string;               // métrica o resultado concreto
+  image: string;
+  seo: SEOFields;
+};
+```
+
+### 6.4 `content/blog/*.mdx` — frontmatter
+
+```yaml
+---
+title: "Automatización de procesos en empresas de Cancún"
+slug: "automatizacion-empresas-cancun"
+description: "..."
+date: "2026-08-26"
+author: "DTA Sistemas"
+category: "Automatización"
+tags: ["automatización", "turismo", "cancún"]
+image: "/images/blog/automatizacion-cancun.jpg"
+readingTime: 6
+seo:
+  metaTitle: "..."
+  metaDescription: "..."
+---
+```
+
+### 6.5 `data/navigation.ts`
+
+Una sola fuente de verdad para el menú principal, footer y breadcrumbs — evita que Navbar y Footer se desincronicen al agregar una nueva solución o sector.
+
+---
+
+## 7. Estrategia SEO
+
+### 7.1 SEO técnico (base obligatoria)
+
+- **Metadata API de Next.js** (`generateMetadata`) por página: title, description, canonical, Open Graph, Twitter Card.
+- **`sitemap.ts` y `robots.ts`** dinámicos, generados desde `data/solutions`, `data/sectors`, `data/projects` y `content/blog` — cualquier contenido nuevo se indexa automáticamente.
+- **URLs limpias y semánticas** (ya reflejadas en el sitemap de la sección 1): `/soluciones/automatizacion`, `/sectores/turismo`, `/blog/automatizacion-empresas-cancun`.
+- **Breadcrumbs** visibles + `BreadcrumbList` en JSON-LD en toda página de segundo nivel o más.
+
+### 7.2 Schema.org (JSON-LD) por tipo de página
+
+| Página | Schema |
+|---|---|
+| Home | `Organization` (+ `sameAs` a redes) |
+| `/soluciones/[slug]` | `Service` |
+| `/sectores/[slug]` | `Service` o `WebPage` con `about` |
+| `/proyectos/[slug]` | `CreativeWork` o `Article` (según formato final) |
+| `/blog/[slug]` | `Article` |
+| `/contacto` | `LocalBusiness` (con dirección Cancún, Quintana Roo) |
+| Cualquier página con preguntas frecuentes | `FAQPage` |
+| Todas (2do nivel+) | `BreadcrumbList` |
+
+### 7.3 SEO local
+
+Páginas geográficas **solo si aportan contenido diferenciado real** (regla explícita del brief: nada de doorway pages). Enfoque recomendado:
+
+1. `LocalBusiness` Schema en `/contacto` y footer con NAP consistente (Nombre, Dirección, Teléfono).
+2. Menciones geográficas naturales dentro de `/sectores/turismo`, `/sectores/hoteleria` (Cancún, Playa del Carmen, Riviera Maya como mercado, no como landing artificial por ciudad).
+3. Contenido de blog orientado a intención local real: *"automatización de empresas en Cancún"*, *"sistemas para empresas turísticas en Riviera Maya"* — como artículos con valor, no como páginas plantilla duplicadas por ciudad.
+4. Registro y optimización de Google Business Profile (fuera del código, pero documentado en `docs/seo.md`).
+
+### 7.4 Arquitectura de contenido / clusters (topic clusters)
+
+```
+Pilar (pillar page) = /soluciones/automatizacion
+   ├── Blog: "cómo automatizar procesos de una empresa"
+   ├── Blog: "automatización de empresas en Cancún"
+   ├── Caso: /proyectos/integracion-de-sistemas (ejemplo)
+   └── Sector relacionado: /sectores/turismo, /sectores/servicios
+```
+
+Cada pilar de solución actúa como **pillar page**; los artículos de blog enlazan hacia el pilar y hacia el sector correspondiente; los casos de proyecto enlazan de vuelta a la solución y al Digital Audit. Esto es lo que en la sección 8 (Internal Linking) del brief se describe como Artículo → Solución → Sector → Caso → Digital Audit → Contacto.
+
+### 7.5 Performance como requisito SEO
+
+- Server Components por defecto; Client Components solo donde haya interactividad real (filtros, formulario, animaciones).
+- `next/image` con tamaños explícitos para evitar CLS.
+- Fuente Inter cargada vía `next/font` (sin FOUT/layout shift).
+- Presupuesto de JS por página objetivo: mínimo indispensable — sin librerías de animación pesadas fuera de Motion, sin scripts de terceros no esenciales.
+
+---
+
+## 8. Flujo de leads
+
+### 8.1 Diagrama de flujo
+
+```
+Usuario completa formulario (/contacto, o CTA "Analizar mi empresa")
+        ↓
+Validación client-side (zod + React Hook Form)
+        ↓
+Cloudflare Turnstile (verificación anti-spam, invisible)
+        ↓
+Server Action / Route Handler (lib/leads/)
+        ↓
+   ├─→ Validación server-side (nunca confiar solo en el cliente)
+   ├─→ Envío de notificación por email (equipo DTA)
+   ├─→ Registro estructurado (hoy: log/almacenamiento simple; futuro: PostgreSQL / CRM)
+   └─→ Evento GA4 (contact_submit / audit_click, con parámetros de sector y solución de origen)
+        ↓
+Confirmación al usuario (pantalla o mensaje de éxito, sin recargar página)
+        ↓
+(Futuro) Sincronización automática con CRM
+```
+
+### 8.2 Campos del formulario (`/contacto`)
+
+Nombre completo · Empresa · Correo electrónico · Teléfono/WhatsApp · Ciudad · ¿En qué podemos ayudarte? (select) · Mensaje/necesidad — tal como se ve implementado en el mockup de `/contacto`. Se recomienda **agregar** un campo oculto de `source` (qué página/CTA originó el lead: hero, digital audit, sector específico) para poder medir qué contenido convierte mejor, sin agregar fricción visual al usuario.
+
+### 8.3 Puntos de entrada al formulario (multi-CTA, un solo destino)
+
+- CTA primario global: **"Hablemos"** (navbar, siempre visible).
+- CTA de intención alta: **"Analizar mi empresa"** (hero, CTA final) → mismo formulario, con `source` marcado como *audit*.
+- CTA de soporte: **"Solicitar diagnóstico"** (bloque DTA Digital Audit).
+- CTA de agenda directa: **"Agendar llamada"** (visto en `/contacto`) — puede integrarse con un calendario externo (Calendly o similar) en fase posterior sin bloquear el lanzamiento.
+
+### 8.4 Eventos GA4 asociados al flujo
+
+`contact_start` (usuario enfoca el primer campo) → `audit_click` / `cta_click` (según origen) → `contact_submit` (envío exitoso) → `whatsapp_click` / `phone_click` / `email_click` (canales directos en la columna "Hablemos").
+
+---
+
+## 9. Arquitectura futura (preparación, no implementación)
+
+Sin construir el SaaS todavía, se dejan **reservados** (ver sección 4):
+
+- Route group `(product)` con `/app`, `/login`, `/dashboard` — vacíos, sin lógica, pero existentes en la estructura para que el equipo de producto no tenga que negociar rutas con el marketing site después.
+- Modelo de datos pensado para agregar `User`/`Account` vía Prisma sin fricción cuando se conecte PostgreSQL.
+- Separación de `lib/leads/` como capa de negocio independiente de la UI, reutilizable si el futuro dashboard necesita mostrar leads capturados.
+- Productos futuros contemplados en el copy y en la jerarquía de marca, pero **no** en el menú principal aún: DTA Audit, DTA Digital Score, DTA Intelligence, DTA Monitoring, DTA Automation.
+
+---
+
+## 10. Roadmap de desarrollo
+
+| Fase | Entregable | Depende de |
+|---|---|---|
+| **0** | Este documento (arquitectura, sitemap, stack, design system, SEO, leads) | — |
+| **1** | Design System implementado en código + página `/design-system` | Fase 0 aprobada |
+| **2** | Navbar, Footer, Homepage completa y responsive | Fase 1 |
+| **3** | `/soluciones` + 6 páginas individuales, SEO y Schema `Service` | Fase 2 |
+| **4** | `/sectores` + 4 páginas individuales con contenido diferenciado | Fase 2 |
+| **5** | `/dta` + `/proyectos` + casos de estudio | Fase 2 |
+| **6** | Blog MDX completo (categorías, tags, Schema `Article`, internal linking) | Fase 3–5 (para poder enlazar) |
+| **7** | `/contacto`, `/soluciones/dta-digital-audit`, `/dta-care`, formulario + Turnstile + Server Action | Fase 2 |
+| **8** | GA4 + GTM + eventos definidos, documentados en `docs/analytics.md` | Fase 7 |
+| **9** | Auditoría de performance, SEO, accesibilidad — corrección de hallazgos | Fases 1–8 completas |
+| **10** | Cloudflare + Vercel + env vars + dominios + entornos (dev/staging/prod) | Fase 9 |
+| **11** | Reserva de rutas `(product)` para plataforma futura (sin lógica) | Fase 10 |
+
+Cada fase se entrega con: objetivos, tareas, archivos creados/modificados, decisiones técnicas, código, checklist de QA (responsive, accesibilidad, SEO, performance) y espera aprobación antes de continuar — tal como establece la regla fundamental del brief.
+
+---
+
+## 11. Puntos que requieren tu aprobación o decisión antes de Fase 1
+
+1. **Server Actions vs. Route Handler** para el formulario (sección 3.3) — recomendación: Server Actions ahora.
+2. **Tipografía final:** Inter (recomendada) vs. Manrope.
+3. **Fuente de contenido de Proyectos:** ¿ya existen casos reales documentados (problema/solución/resultado) o se redactan como parte de la Fase 5?
+4. **CRM de destino futuro** (HubSpot, Pipedrive, uno propio) — no bloquea el desarrollo actual, pero definirlo ahora evita rediseñar `lib/leads/` después.
+5. **Dominio y correo transaccional** (para envío de notificación de leads) — necesario antes de Fase 7.
+
+---
+
+*Fin del documento — Fase 0. Quedo en espera de aprobación para iniciar Fase 1 (Design System).*
+
