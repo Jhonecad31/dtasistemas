@@ -4,8 +4,7 @@ import { Search } from "lucide-react";
 import { Section } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { Breadcrumb } from "@/components/navigation/Breadcrumb";
-import { TabsFilter } from "@/components/navigation/TabsFilter";
-import { SolutionsGrid } from "@/components/sections/SolutionsGrid";
+import { SolucionesTabsSection } from "@/components/sections/SolucionesTabsSection";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildBreadcrumbSchema } from "@/lib/seo/schema";
 import { buildAlternates } from "@/lib/seo/alternates";
@@ -46,7 +45,7 @@ export default async function SolucionesPage({ params }: Props) {
       </Section>
 
       <Section tone="light">
-        <TabsFilter tabs={tabs}>{(activeTab) => <SolutionsGrid activeTab={activeTab} />}</TabsFilter>
+        <SolucionesTabsSection tabs={tabs} />
 
         <div className="mt-10 rounded-card bg-dta-gray-50 border border-dta-gray-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -59,7 +58,7 @@ export default async function SolucionesPage({ params }: Props) {
             </div>
           </div>
           <Button href="/soluciones/dta-digital-audit" variant="secondary">
-            Solicitar diagnóstico
+            {tc("solicitarDiagnostico")}
           </Button>
         </div>
       </Section>
