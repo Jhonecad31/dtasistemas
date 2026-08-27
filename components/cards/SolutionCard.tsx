@@ -1,5 +1,5 @@
 import { LucideIcon, CheckCircle2, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { IconCircle } from "../ui/Badge";
 
 type SolutionCardProps = {

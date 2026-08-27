@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ChevronRight } from "lucide-react";
 
 type ProjectCardProps = {
@@ -18,7 +18,7 @@ export function ProjectCard({ sector, title, description, image, href }: Project
       className="block rounded-card border border-dta-gray-200 bg-white overflow-hidden hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-dta-blue-600"
     >
       <div className="relative aspect-video bg-dta-navy-900">
-        <Image src={image} alt={title} fill className="object-cover" />
+        <Image src={image} alt={title} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover" />
       </div>
       <div className="p-5">
         <div className="text-label uppercase text-dta-blue-600 mb-2">{sector}</div>

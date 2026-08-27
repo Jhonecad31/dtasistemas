@@ -1,5 +1,5 @@
 import { ButtonHTMLAttributes, ReactNode } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 
 type Variant = "primary" | "secondary" | "dark";
@@ -32,16 +32,32 @@ const base =
  * de cada vista ("Hablemos", "Analizar mi empresa"), "secondary" para
  * CTAs de apoyo, "dark" solo sobre fondos claros cuando se necesita
  * más peso visual que "secondary".
+ *
+ * Fase 13: hrefs externos (mailto:, tel:, http(s)://, #anchors) usan <a>
+ * normal — el <Link> de next-intl asume rutas internas del sitio y les
+ * antepondría el prefijo de locale incorrectamente (ej. "/en/mailto:...").
  */
+function isExternalHref(href: string): boolean {
+  return /^(mailto:|tel:|https?:\/\/|#)/.test(href);
+}
+
 export function Button(props: ButtonAsButton | ButtonAsLink) {
   const { children, variant = "primary", showArrow = true, className = "" } = props;
   const classes = `${base} ${variantStyles[variant]} ${className}`;
 
   if ("href" in props && props.href) {
+    if (isExternalHref(props.href)) {
+      return (
+        <a href={props.href} className={classes}>
+          {children}
+          {showArrow && <ArrowRight size={16} aria-hidden="true" />}
+        </a>
+      );
+    }
     return (
       <Link href={props.href} className={classes}>
         {children}
-        {showArrow && <ArrowRight size={16} />}
+        {showArrow && <ArrowRight size={16} aria-hidden="true" />}
       </Link>
     );
   }
@@ -50,7 +66,7 @@ export function Button(props: ButtonAsButton | ButtonAsLink) {
   return (
     <button {...buttonProps} className={classes}>
       {children}
-      {showArrow && <ArrowRight size={16} />}
+      {showArrow && <ArrowRight size={16} aria-hidden="true" />}
     </button>
   );
 }

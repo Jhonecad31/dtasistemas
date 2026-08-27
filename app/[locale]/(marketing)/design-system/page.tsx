@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { setRequestLocale } from "next-intl/server";
 import {
   Boxes, Link2, BarChart3, Bot, Code2, Phone, Mail, MapPin, Clock,
 } from "lucide-react";
@@ -27,7 +28,11 @@ const colorTokens = [
   { name: "White", hex: "#FFFFFF", className: "bg-dta-white border border-dta-gray-200" },
 ];
 
-export default function DesignSystemPage() {
+type Props = { params: Promise<{ locale: string }> };
+
+export default async function DesignSystemPage({ params }: Props) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   return (
     <div className="pb-24">
       <Section tone="transparent" className="pt-16">

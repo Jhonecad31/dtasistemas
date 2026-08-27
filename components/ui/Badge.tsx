@@ -23,6 +23,12 @@ type IconCircleProps = {
 /**
  * Círculo de ícono — elemento repetido en pilares, "Así trabajamos" y
  * canales de contacto. tone="dark" se usa sobre fondos navy.
+ *
+ * aria-hidden (hallazgo de la auditoría de Fase 9): el ícono siempre vive
+ * junto a un texto que ya describe el contenido (título del pilar, label
+ * del canal de contacto...), así que es puramente decorativo — sin
+ * aria-hidden, algunos lectores de pantalla anuncian "imagen" o el nombre
+ * del ícono SVG sin aportar información adicional.
  */
 export function IconCircle({ icon: Icon, tone = "light", size = "md" }: IconCircleProps) {
   const dims = size === "sm" ? "w-9 h-9" : "w-11 h-11";
@@ -31,7 +37,7 @@ export function IconCircle({ icon: Icon, tone = "light", size = "md" }: IconCirc
     tone === "light" ? "bg-dta-blue-100 text-dta-blue-600" : "bg-white/10 text-white";
 
   return (
-    <div className={`${dims} rounded-full flex items-center justify-center ${colors}`}>
+    <div className={`${dims} rounded-full flex items-center justify-center ${colors}`} aria-hidden="true">
       <Icon size={iconSize} />
     </div>
   );
