@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
-import { NextIntlClientProvider, hasLocale } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -42,17 +42,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 /**
- * True root layout (Fase 13) — vive en app/[locale]/layout.tsx, NO en
- * app/layout.tsx (que ya no existe). Patrón estándar de next-intl: dado
- * que TODA ruta del sitio vive bajo [locale], este layout es el único que
- * declara <html>/<body>. Ver docs/i18n.md para el detalle completo de la
- * migración.
+ * True root layout — vive en app/[locale]/layout.tsx (patrón estándar de
+ * next-intl, ver docs/i18n.md).
+ *
+ * FIX post-entrega #1: se reemplazó `hasLocale` (no exportado en la
+ * versión de next-intl resuelta por package.json) por una comparación
+ * manual contra `routing.locales`.
+ *
+ * FIX post-entrega #2: <NextIntlClientProvider> no recibía `messages`
+ * explícitamente. Casi todas las secciones del sitio son Client Components
+ * (necesitan useTranslations por interactividad/hooks), así que dependen
+ * enteramente de que el provider les entregue el diccionario. Sin pasarlo,
+ * cada t("clave") caía al fallback de next-intl de mostrar la ruta literal
+ * de la clave (ej. "home.auditTitle") en vez del texto real — afectaba
+ * prácticamente toda la interfaz visible del sitio. Se corrige obteniendo
+ * los mensajes con getMessages() (next-intl/server) y pasándolos al
+ * provider junto con el locale.
  */
 export default async function RootLayout({ children, params }: Props) {
   const { locale } = await params;
-  if (!hasLocale(routing.locales, locale)) notFound();
+  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) notFound();
 
   setRequestLocale(locale);
+  const messages = await getMessages();
 
   return (
     <html lang={locale} className={inter.variable}>
@@ -65,7 +77,9 @@ export default async function RootLayout({ children, params }: Props) {
         <Suspense fallback={null}>
           <PageViewTracker />
         </Suspense>
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );
