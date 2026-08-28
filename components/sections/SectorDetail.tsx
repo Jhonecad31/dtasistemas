@@ -21,7 +21,7 @@ export async function SectorDetail({ sector, locale }: { sector: Sector; locale:
       const solution = getLocalizedSolutionBySlug(rs.slug, locale);
       return solution ? { ...solution, angle: rs.angle } : null;
     })
-    .filter(Boolean);
+    .filter((s): s is NonNullable<typeof s> => s !== null);
 
   return (
     <div>
@@ -71,17 +71,20 @@ export async function SectorDetail({ sector, locale }: { sector: Sector; locale:
           {t("howWeHelpPrefix")} {sector.name.toLowerCase()}
         </h2>
         <div className="grid md:grid-cols-3 gap-5">
-          {resolvedSolutions.map((s) => (
-            <Link
-              key={s!.slug}
-              href={s!.href}
-              className="rounded-card border border-dta-gray-200 bg-white p-5 hover:shadow-md transition-shadow block focus-visible:outline focus-visible:outline-2 focus-visible:outline-dta-blue-600"
-            >
-              <s!.icon size={20} className="text-dta-blue-600 mb-3" aria-hidden="true" />
-              <div className="font-bold text-dta-black text-sm">{s!.title}</div>
-              <p className="text-sm text-dta-gray-600 mt-1">{s!.angle}</p>
-            </Link>
-          ))}
+          {resolvedSolutions.map((s) => {
+            const Icon = s.icon;
+            return (
+              <Link
+                key={s.slug}
+                href={s.href}
+                className="rounded-card border border-dta-gray-200 bg-white p-5 hover:shadow-md transition-shadow block focus-visible:outline focus-visible:outline-2 focus-visible:outline-dta-blue-600"
+              >
+                <Icon size={20} className="text-dta-blue-600 mb-3" aria-hidden="true" />
+                <div className="font-bold text-dta-black text-sm">{s.title}</div>
+                <p className="text-sm text-dta-gray-600 mt-1">{s.angle}</p>
+              </Link>
+            );
+          })}
         </div>
       </Section>
 
