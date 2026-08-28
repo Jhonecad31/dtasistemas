@@ -1,11 +1,22 @@
 "use client";
 
-import { LucideIcon, ChevronRight } from "lucide-react";
+import { Phone, Mail, MapPin, Clock, ChevronRight, type LucideIcon } from "lucide-react";
 import { IconCircle } from "../ui/Badge";
 import { analytics } from "@/lib/analytics/events";
 
+const ICONS: Record<string, LucideIcon> = { phone: Phone, mail: Mail, mapPin: MapPin, clock: Clock };
+
 type ContactChannelRowProps = {
-  icon: LucideIcon;
+  /**
+   * FIX post-entrega: antes recibía `icon: LucideIcon` (el componente en
+   * sí) como prop desde contacto/page.tsx (Server Component) — pasar un
+   * componente/función de un Server Component a un Client Component no es
+   * válido en React Server Components (mismo tipo de error que el fix
+   * anterior de TabsFilter, esta vez con "render: function Phone").
+   * Ahora recibe una clave de texto (dato serializable) y resuelve el
+   * ícono real aquí adentro, ya del lado del cliente.
+   */
+  iconKey: "phone" | "mail" | "mapPin" | "clock";
   label: string;
   value: string;
   href?: string; // tel:, mailto:, o undefined para filas informativas (oficina, horario)
@@ -17,7 +28,9 @@ type ContactChannelRowProps = {
  * Client Component porque dispara el evento GA4 correspondiente al clic
  * (whatsapp_click / phone_click / email_click, Fase 0 sección 19).
  */
-export function ContactChannelRow({ icon: Icon, label, value, href, trackEvent }: ContactChannelRowProps) {
+export function ContactChannelRow({ iconKey, label, value, href, trackEvent }: ContactChannelRowProps) {
+  const Icon = ICONS[iconKey];
+
   function handleClick() {
     if (trackEvent === "whatsapp") analytics.whatsappClick();
     if (trackEvent === "phone") analytics.phoneClick();
@@ -33,7 +46,7 @@ export function ContactChannelRow({ icon: Icon, label, value, href, trackEvent }
           <div className="text-sm font-semibold text-dta-black">{value}</div>
         </div>
       </div>
-      {href && <ChevronRight size={16} className="text-dta-gray-600" />}
+      {href && <ChevronRight size={16} className="text-dta-gray-600" aria-hidden="true" />}
     </div>
   );
 

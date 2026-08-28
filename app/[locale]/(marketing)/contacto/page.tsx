@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Phone, Mail, MapPin, Clock, MessageCircle, ShieldCheck, Users2 } from "lucide-react";
+import { MessageCircle, ShieldCheck, Users2 } from "lucide-react";
 import { Section } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { Breadcrumb } from "@/components/navigation/Breadcrumb";
@@ -38,10 +38,10 @@ export default async function ContactoPage({ params, searchParams }: Props) {
   const t = await getTranslations({ locale, namespace: "contactoPage" });
 
   const channels = [
-    { icon: Phone, label: t("channelPhone"), value: "+52 998 123 4567", href: "https://wa.me/529981234567", trackEvent: "whatsapp" as const },
-    { icon: Mail, label: t("channelEmail"), value: "contacto@dtasistemas.com", href: "mailto:contacto@dtasistemas.com", trackEvent: "email" as const },
-    { icon: MapPin, label: t("channelOffice"), value: "Cancún, Quintana Roo, México" },
-    { icon: Clock, label: t("channelSchedule"), value: t("scheduleValue") },
+    { iconKey: "phone" as const, label: t("channelPhone"), value: "+52 998 123 4567", href: "https://wa.me/529981234567", trackEvent: "whatsapp" as const },
+    { iconKey: "mail" as const, label: t("channelEmail"), value: "contacto@dtasistemas.com", href: "mailto:contacto@dtasistemas.com", trackEvent: "email" as const },
+    { iconKey: "mapPin" as const, label: t("channelOffice"), value: "Cancún, Quintana Roo, México" },
+    { iconKey: "clock" as const, label: t("channelSchedule"), value: t("scheduleValue") },
   ];
 
   return (

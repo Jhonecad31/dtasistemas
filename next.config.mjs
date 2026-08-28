@@ -7,9 +7,21 @@ import createNextIntlPlugin from "next-intl/plugin";
  */
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+const isDev = process.env.NODE_ENV !== "production";
+
+/**
+ * FIX post-entrega: en desarrollo, Next.js necesita eval() para el Hot
+ * Module Reload (React Refresh) — sin 'unsafe-eval' en script-src, el
+ * navegador bloquea la ejecución del runtime de desarrollo y TODO el
+ * JavaScript del cliente deja de funcionar (formularios en blanco, botones
+ * sin efecto, etc.), aunque el CSS y el HTML se vean bien.
+ *
+ * 'unsafe-eval' NUNCA se agrega en producción — ahí sí importa la
+ * protección real contra XSS que la CSP está pensada para dar.
+ */
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://challenges.cloudflare.com",
+  `script-src 'self' 'unsafe-inline' ${isDev ? "'unsafe-eval' " : ""}https://www.googletagmanager.com https://challenges.cloudflare.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
